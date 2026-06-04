@@ -37,7 +37,7 @@ final class WorldTwoSparkEngine {
 
         for var spark in sparks where spark.isAlive {
             spark.age += 1
-            move(&spark, simulator: simulator, rng: &rng)
+            move(&spark, simulator: simulator)
             updateEnergy(&spark, simulator: simulator)
             mutate(&spark, parameters: parameters, rng: &rng)
             adapt(&spark)
@@ -59,16 +59,17 @@ final class WorldTwoSparkEngine {
         sparks = Array((next + children).prefix(maxSparks))
     }
 
-    private func move(_ spark: inout WorldTwoSpark, simulator: WorldTwoPlanetSimulator, rng: inout SeededRNG) {
+    private func move(_ spark: inout WorldTwoSpark, simulator: WorldTwoPlanetSimulator) {
         let options = simulator.neighbors(of: spark.position, radius: 1)
-        guard let selected = options.max(by: { moveScore($0, spark, simulator, &rng) < moveScore($1, spark, simulator, &rng) }) else { return }
+        guard let selected = options.max(by: { moveScore($0, spark, simulator) < moveScore($1, spark, simulator) }) else { return }
         spark.position = selected.coordinate
     }
 
-    private func moveScore(_ cell: WorldTwoPlanetCell, _ spark: WorldTwoSpark, _ simulator: WorldTwoPlanetSimulator, _ rng: inout SeededRNG) -> Double {
+    private func moveScore(_ cell: WorldTwoPlanetCell, _ spark: WorldTwoSpark, _ simulator: WorldTwoPlanetSimulator) -> Double {
         let affinity = 1.0 - abs(cell.habitability - spark.environmentAffinity)
         let energyFit = 1.0 - abs(cell.energyField - spark.energySignature)
-        return affinity * 0.35 + energyFit * 0.35 + simulator.energyGradient(at: cell.coordinate) * 0.2 + rng.nextDouble(in: 0...0.1)
+        let jitter = ProceduralNoise.hashNoise(x: cell.coordinate.x + spark.age, y: cell.coordinate.y + spark.generation, seed: simulator.seed) * 0.1
+        return affinity * 0.35 + energyFit * 0.35 + simulator.energyGradient(at: cell.coordinate) * 0.2 + jitter
     }
 
     private func updateEnergy(_ spark: inout WorldTwoSpark, simulator: WorldTwoPlanetSimulator) {
