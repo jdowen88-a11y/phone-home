@@ -20,11 +20,9 @@ final class AppModel: ObservableObject {
         let loadedSettings = LocalStore.load(UserSettings.self, from: settingsFile) ?? UserSettings()
         let loadedFavorites = LocalStore.load(Set<String>.self, from: favoritesFile) ?? []
         var loadedWorld = LocalStore.load(WorldState.self, from: snapshotFile) ?? PlanetSimulator.makeWorld()
-        loadedWorld.hotspots = ResonanceDetectorSwarm.scan(world: loadedWorld)
-        loadedWorld.metrics = PlanetSimulator.calculateMetrics(loadedWorld)
-        if loadedWorld.metricsHistory.isEmpty {
-            PlanetSimulator.appendMetricsFrame(&loadedWorld)
-        }
+
+        ForgeEngine.ensureBootstrapped(&loadedWorld)
+
         settings = loadedSettings
         favoriteFormulaIDs = loadedFavorites
         world = loadedWorld
@@ -40,34 +38,30 @@ final class AppModel: ObservableObject {
     }
 
     func newWorld() {
-        let seed = Int.random(in: 1...999999)
-        world = PlanetSimulator.makeWorld(
-            name: "Aether-\(Int.random(in: 10...99))",
-            seed: seed,
-            solarIntensity: world.solarIntensity,
-            waterLevel: world.waterLevel,
-            atmosphereDensity: world.atmosphereDensity
-        )
+        world = ForgeEngine.createPrimeWorldLikeCurrent(world)
         saveSnapshot()
     }
 
     func regenerateEnvironment() {
-        PlanetSimulator.regenerateEnvironment(&world)
+        ForgeEngine.regeneratePrimeEnvironment(world: &world)
         saveSnapshot()
     }
 
     func seedSparks(count: Int = 24) {
-        SparkEmergenceEngine.seedSparks(in: &world, count: count, baseMutationRate: mutationRate)
-        world.hotspots = ResonanceDetectorSwarm.scan(world: world)
-        world.metrics = PlanetSimulator.calculateMetrics(world)
-        PlanetSimulator.appendMetricsFrame(&world)
+        ForgeEngine.seedPrimeSparks(
+            world: &world,
+            count: count,
+            mutationRate: mutationRate
+        )
         saveSnapshot()
     }
 
     func runSteps(_ count: Int) {
-        for _ in 0..<count {
-            PlanetSimulator.runStep(&world, maxSparkCount: settings.maxSparkCount)
-        }
+        ForgeEngine.runPrimeSteps(
+            world: &world,
+            count: count,
+            maxSparkCount: settings.maxSparkCount
+        )
         saveSnapshot()
     }
 
@@ -75,7 +69,7 @@ final class AppModel: ObservableObject {
         if let solarIntensity { world.solarIntensity = solarIntensity }
         if let waterLevel { world.waterLevel = waterLevel }
         if let atmosphereDensity { world.atmosphereDensity = atmosphereDensity }
-        PlanetSimulator.regenerateEnvironment(&world)
+        ForgeEngine.regeneratePrimeEnvironment(world: &world)
         saveSnapshot()
     }
 
