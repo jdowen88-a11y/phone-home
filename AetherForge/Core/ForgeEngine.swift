@@ -7,14 +7,25 @@ import Foundation
 /// a real home without replacing the existing v0.86 engine.
 @MainActor
 enum ForgeEngine {
-    static let version = "0.87"
+    static let version = "0.88"
     static let primeDisplayName = "Aether Prime"
     static let archiveDisplayName = "Archive Planet"
 
-    static func refreshDerivedData(for world: inout WorldState) {
+    static func refreshDerivedData(for world: inout WorldState, appendHistory: Bool = true) {
         world.hotspots = ResonanceDetectorSwarm.scan(world: world)
         world.metrics = PlanetSimulator.calculateMetrics(world)
-        PlanetSimulator.appendMetricsFrame(&world)
+
+        if appendHistory {
+            PlanetSimulator.appendMetricsFrame(&world)
+        }
+    }
+
+    static func ensureBootstrapped(_ world: inout WorldState) {
+        refreshDerivedData(for: &world, appendHistory: false)
+
+        if world.metricsHistory.isEmpty {
+            PlanetSimulator.appendMetricsFrame(&world)
+        }
     }
 
     static func createPrimeWorld(
@@ -84,15 +95,22 @@ enum ForgeEngine {
         )
     }
 
-    static func summarizeArchiveWorld(_ model: WorldTwoViewModel) -> ForgeWorldSummary {
+    static func summarizeArchiveWorld(
+        stepIndex: Int,
+        sparkCount: Int,
+        groundedSparkCount: Int,
+        hotspotCount: Int,
+        complexityScore: Double,
+        name: String = archiveDisplayName
+    ) -> ForgeWorldSummary {
         ForgeWorldSummary(
             slot: .archivePlanet,
-            name: archiveDisplayName,
-            stepIndex: model.currentStep,
-            sparkCount: model.metrics.sparkCount,
-            groundedSparkCount: model.metrics.groundedSparkCount,
-            hotspotCount: model.hotspots.count,
-            complexityScore: model.metrics.complexityScore
+            name: name,
+            stepIndex: stepIndex,
+            sparkCount: sparkCount,
+            groundedSparkCount: groundedSparkCount,
+            hotspotCount: hotspotCount,
+            complexityScore: complexityScore
         )
     }
 }
